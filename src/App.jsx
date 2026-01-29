@@ -4,7 +4,6 @@ function App() {
   const [idea, setIdea] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const handleGenerate = async () => {
     if (!idea.trim()) return;
@@ -26,23 +25,6 @@ function App() {
     }
   };
 
-  const handleCopy = () => {
-    if (!result) return;
-    navigator.clipboard.writeText(JSON.stringify(result, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownload = () => {
-    if (!result) return;
-    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "brief-musical.json";
-    a.click();
-  };
-
   const handleDownloadPDF = async () => {
     if (!result) return;
     
@@ -53,6 +35,10 @@ function App() {
         body: JSON.stringify(result),
       });
       
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -61,7 +47,8 @@ function App() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Erreur lors de la génération du PDF");
+      console.error("Erreur PDF:", err);
+      alert("Erreur lors de la génération du PDF: " + err.message);
     }
   };
 
@@ -92,7 +79,6 @@ function App() {
   // Fonction pour parser et formater le contenu
   const formatContent = (content) => {
     if (typeof content === "object" && content !== null) {
-      // Si c'est un tableau
       if (Array.isArray(content)) {
         return content.map((item, idx) => (
           <div key={idx} style={{
@@ -110,7 +96,6 @@ function App() {
         ));
       }
       
-      // Si c'est un objet, on le transforme en liste
       return Object.entries(content).map(([key, value]) => (
         <div key={key} style={{
           padding: "12px 16px",
@@ -144,19 +129,14 @@ function App() {
       ));
     }
 
-    // Si c'est du texte, on sépare par lignes, tirets, virgules
     const text = String(content);
-    
-    // Séparer par sauts de ligne, puis par tirets ou puces
     const lines = text
       .split(/\n/)
       .map(line => line.trim())
       .filter(line => line.length > 0);
     
     return lines.map((line, idx) => {
-      // Séparer les items séparés par des tirets
       if (line.includes('-') && !line.startsWith('-')) {
-        // Si la ligne contient des tirets mais ne commence pas par un tiret
         const parts = line.split('-').map(p => p.trim()).filter(p => p);
         return parts.map((part, i) => (
           <div key={`${idx}-${i}`} style={{
@@ -173,7 +153,6 @@ function App() {
           </div>
         ));
       } else if (line.startsWith('-') || line.startsWith('•')) {
-        // Items de liste
         return (
           <div key={idx} style={{
             padding: "10px 14px",
@@ -189,7 +168,6 @@ function App() {
           </div>
         );
       } else if (line.includes(',') && line.length > 50) {
-        // Séparer par virgules si c'est une longue liste
         const items = line.split(',').map(i => i.trim()).filter(i => i);
         return items.map((item, i) => (
           <div key={`${idx}-${i}`} style={{
@@ -206,7 +184,6 @@ function App() {
           </div>
         ));
       } else {
-        // Ligne normale
         return (
           <div key={idx} style={{
             padding: "10px 14px",
@@ -225,7 +202,6 @@ function App() {
     });
   };
 
-  // Fonction utilitaire pour convertir un objet en texte lisible
   const formatObjectToText = (obj) => {
     if (typeof obj !== "object" || obj === null) return String(obj);
     
@@ -384,21 +360,17 @@ function App() {
         {/* Results */}
         {result && (
           <div style={{ animation: "slideUp 0.5s ease-out" }}>
-            {/* Action Buttons */}
+            {/* PDF Download Button */}
             <div style={{ 
               display: "flex", 
               gap: "15px", 
               marginBottom: "30px",
-              flexWrap: "wrap"
+              justifyContent: "center"
             }}>
-              
-            
               <button 
                 onClick={handleDownloadPDF} 
                 style={{ 
-                  flex: "1",
-                  minWidth: "180px",
-                  padding: "14px 20px", 
+                  padding: "14px 30px", 
                   borderRadius: "12px", 
                   background: "linear-gradient(135deg, #ec4899, #f43f5e)",
                   border: "none",
@@ -420,7 +392,6 @@ function App() {
               >
                 📄 Télécharger PDF
               </button>
-              
             </div>
 
             {/* Beautiful Cards Grid */}
