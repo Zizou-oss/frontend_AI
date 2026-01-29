@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# Dépendances
+node_modules/
+dist/
+dist-ssr/
+
+# Logs
+*.log
+
+# Autres
+.DS_Store

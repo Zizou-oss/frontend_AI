@@ -47,7 +47,7 @@ function App() {
     if (!result) return;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-pdf`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(result),
