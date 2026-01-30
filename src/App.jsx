@@ -1,25 +1,73 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 function App() {
   const [idea, setIdea] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const eventSourceRef = useRef(null);
 
-  const handleGenerate = async () => {
+  // 🔥 STREAMING EN TEMPS RÉEL
+  const handleGenerateStream = async () => {
     if (!idea.trim()) return;
+    
     setLoading(true);
     setResult(null);
+    setStreamingText("");
+    setIsStreaming(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/generate-stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idea }),
       });
-      const data = await response.json();
-      setResult(data);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+              
+              if (parsed.error) {
+                alert("Erreur: " + parsed.error);
+                setIsStreaming(false);
+                setLoading(false);
+                return;
+              }
+              
+              if (parsed.chunk) {
+                accumulated += parsed.chunk;
+                setStreamingText(accumulated);
+              }
+              
+              if (parsed.done && parsed.result) {
+                setResult(parsed.result);
+                setIsStreaming(false);
+                setStreamingText("");
+              }
+            } catch (e) {
+              // Ignore les erreurs de parsing
+            }
+          }
+        }
+      }
     } catch (err) {
+      console.error(err);
       alert("Erreur: Assure-toi que le backend tourne !");
+      setIsStreaming(false);
     } finally {
       setLoading(false);
     }
@@ -324,7 +372,7 @@ function App() {
 
           {/* Generate Button */}
           <button
-            onClick={handleGenerate}
+            onClick={handleGenerateStream}
             disabled={loading || !idea.trim()}
             style={{
               width: "100%",
@@ -356,6 +404,54 @@ function App() {
             {loading ? "⏳ Génération en cours..." : "✨ Générer le brief"}
           </button>
         </div>
+
+        {/* 🔥 STREAMING BOX - NOUVEAU */}
+        {isStreaming && streamingText && (
+          <div style={{
+            background: "white",
+            padding: "25px",
+            borderRadius: "16px",
+            marginBottom: "30px",
+            border: "2px solid #8b5cf6",
+            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.15)",
+            animation: "pulse 2s ease-in-out infinite"
+          }}>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              marginBottom: "15px",
+              gap: "10px"
+            }}>
+              <div style={{
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                background: "#10b981",
+                animation: "blink 1s ease-in-out infinite"
+              }}></div>
+              <span style={{ 
+                color: "#8b5cf6", 
+                fontWeight: "700",
+                fontSize: "16px"
+              }}>
+                Génération en cours...
+              </span>
+            </div>
+            <pre style={{
+              whiteSpace: "pre-wrap",
+              wordWrap: "break-word",
+              color: "#374151",
+              fontSize: "14px",
+              lineHeight: "1.6",
+              fontFamily: "'Courier New', monospace",
+              margin: 0,
+              maxHeight: "300px",
+              overflowY: "auto"
+            }}>
+              {streamingText}
+            </pre>
+          </div>
+        )}
 
         {/* Results */}
         {result && (
@@ -469,6 +565,24 @@ function App() {
             to {
               opacity: 1;
               transform: translateY(0);
+            }
+          }
+
+          @keyframes pulse {
+            0%, 100% {
+              box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+            }
+            50% {
+              box-shadow: 0 4px 30px rgba(139, 92, 246, 0.3);
+            }
+          }
+
+          @keyframes blink {
+            0%, 100% {
+              opacity: 1;
+            }
+            50% {
+              opacity: 0.3;
             }
           }
         `}</style>
